@@ -134,12 +134,22 @@ if uploaded_file is not None:
         st.line_chart(history)
 
         # Evaluate accuracy on test data using the best model
-        model = LinearRegression()
-        model.coef_ = best_solution[:-1]  # All except the last parameter for the coefficients
-        model.intercept_ = best_solution[-1]  # The last parameter for the intercept
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
+       # Evaluate accuracy on test data using the best model
+model = LinearRegression()
 
-        # Display MSE (Accuracy) and Computational Efficiency
-        st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
-        st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
+# Ensure the shape of best_solution[:-1] matches the number of features
+expected_features = X_train.shape[1]
+if len(best_solution[:-1]) != expected_features:
+    st.error(f"Dimension mismatch: Expected {expected_features} features, but got {len(best_solution[:-1])}.")
+else:
+    model.coef_ = best_solution[:-1]  # Assign coefficients
+    model.intercept_ = best_solution[-1]  # Assign intercept
+
+    # Predict using the model
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+
+    # Display MSE (Accuracy) and Computational Efficiency
+    st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
+    st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
+
