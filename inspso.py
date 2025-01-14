@@ -5,6 +5,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+import time
 
 # Streamlit file upload
 uploaded_file = st.file_uploader("insurance.csv", type=["csv"])
@@ -34,9 +35,22 @@ if uploaded_file is not None:
     # Split data into training and test sets
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
+    # Fitness function
     def fitness_function(solution):
-        return sum(x**2 for x in solution)
+        # Linear Regression model based on the solution (weights)
+        model = LinearRegression()
+        model.coef_ = np.array(solution[:-1])  # All except the last parameter for the coefficients
+        model.intercept_ = solution[-1]  # The last parameter for the intercept
 
+        # Train the model and make predictions
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        # Calculate the Mean Squared Error (MSE)
+        mse = mean_squared_error(y_test, y_pred)
+        return mse
+
+    # PSO initialization functions
     def initialize_particles(pop_size, dimensions, lower_bound, upper_bound):
         particles = np.random.uniform(lower_bound, upper_bound, (pop_size, dimensions))
         velocities = np.random.uniform(-abs(upper_bound - lower_bound), abs(upper_bound - lower_bound), (pop_size, dimensions))
@@ -65,6 +79,7 @@ if uploaded_file is not None:
         global_best_score = np.min(personal_best_scores)
 
         history = []
+        start_time = time.time()  # Track start time for computational efficiency
 
         for generation in range(max_generations):
             velocities = update_velocity(velocities, particles, personal_best_positions, global_best_position, inertia, cognitive, social)
@@ -86,14 +101,15 @@ if uploaded_file is not None:
             history.append(global_best_score)
 
             if generation % 10 == 0 or generation == max_generations - 1:
-                st.write(f"Generation {generation}: Best Fitness = {global_best_score}")
+                st.write(f"Generation {generation}: Best Fitness (MSE) = {global_best_score}")
 
-        return global_best_position, global_best_score, history
+        elapsed_time = time.time() - start_time  # Calculate computational time
+        return global_best_position, global_best_score, history, elapsed_time
 
     # Streamlit Interface
     st.title("Insurance using Particle Swarm Optimization (PSO)")
 
-    # Parameters
+    # Parameters for PSO
     pop_size = st.number_input("Population Size", min_value=10, value=50)
     dimensions = st.number_input("Dimensions", min_value=2, value=10)
     max_generations = st.number_input("Maximum Generations", min_value=10, value=100)
@@ -104,11 +120,23 @@ if uploaded_file is not None:
     social = st.number_input("Social Coefficient", value=1.5)
 
     if st.button("Run Optimization"):
-        best_solution, best_fitness, history = particle_swarm_optimization(
+        best_solution, best_fitness, history, elapsed_time = particle_swarm_optimization(
             pop_size, dimensions, lower_bound, upper_bound, max_generations, inertia, cognitive, social
         )
-        st.success(f"Optimization Completed! Best Fitness: {best_fitness}")
-        st.write("Best Solution:", best_solution)
+        
+        st.success(f"Optimization Completed! Best Fitness (MSE): {best_fitness}")
+        st.write("Best Solution (Optimized Model Parameters):", best_solution)
 
-        # Plot convergence
+        # Plot convergence (MSE over generations)
         st.line_chart(history)
+
+        # Evaluate accuracy on test data using the best model
+        model = LinearRegression()
+        model.coef_ = best_solution[:-1]  # All except the last parameter for the coefficients
+        model.intercept_ = best_solution[-1]  # The last parameter for the intercept
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+
+        # Display MSE (Accuracy) and Computational Efficiency
+        st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
+        st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
