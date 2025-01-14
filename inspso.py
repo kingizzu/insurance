@@ -119,24 +119,26 @@ if uploaded_file is not None:
     cognitive = st.number_input("Cognitive Coefficient", value=1.5)
     social = st.number_input("Social Coefficient", value=1.5)
 
-    if st.button("Run Optimization"):
-        best_solution, best_fitness, history, elapsed_time = particle_swarm_optimization(
-            pop_size, dimensions, lower_bound, upper_bound, max_generations, inertia, cognitive, social
-        )
-        
-        st.success(f"Optimization Completed! Best Fitness (MSE): {best_fitness}")
-        st.write("Best Solution (Optimized Model Parameters):", best_solution)
+  if st.button("Run Optimization"):
+    best_solution, best_fitness, history, elapsed_time = particle_swarm_optimization(
+        pop_size, dimensions, lower_bound, upper_bound, max_generations, inertia, cognitive, social
+    )
+    
+    st.success(f"Optimization Completed! Best Fitness (MSE): {best_fitness}")
+    st.write("Best Solution (Optimized Model Parameters):", best_solution)
+    st.write("Best solution shape:", len(best_solution))  # Debugging output
+    st.write("X_train shape:", X_train.shape)  # Debugging output
 
-        # Plot convergence (MSE over generations)
-        st.line_chart(history)
+    # Plot convergence (MSE over generations)
+    st.line_chart(history)
 
-        # Evaluate accuracy on test data using the best model
-        model = LinearRegression()
-        model.coef_ = best_solution[:-1]  # All except the last parameter for the coefficients
-        model.intercept_ = best_solution[-1]  # The last parameter for the intercept
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
+    # Evaluate accuracy on test data using the best model
+    model = LinearRegression()
+    model.coef_ = best_solution[:-1]  # All except the last parameter for the coefficients
+    model.intercept_ = best_solution[-1]  # The last parameter for the intercept
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
 
-        # Display MSE (Accuracy) and Computational Efficiency
-        st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
-        st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
+    # Display MSE (Accuracy) and Computational Efficiency
+    st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
+    st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
