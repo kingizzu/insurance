@@ -8,7 +8,7 @@ from sklearn.metrics import mean_squared_error
 import time
 
 # Streamlit file upload
-uploaded_file = st.file_uploader("insurance.csv", type=["csv"])
+uploaded_file = st.file_uploader("Upload insurance.csv", type=["csv"])
 
 if uploaded_file is not None:
     # Read the uploaded file into a DataFrame
@@ -37,17 +37,11 @@ if uploaded_file is not None:
 
     # Fitness function
     def fitness_function(solution):
-        # Linear Regression model based on the solution (weights)
         model = LinearRegression()
-        model.coef_ = np.array(solution[:-1])  # All except the last parameter for the coefficients
-        model.intercept_ = solution[-1]  # The last parameter for the intercept
-
-        # Train the model and make predictions
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
-        # Calculate the Mean Squared Error (MSE)
-        mse = mean_squared_error(y_test, y_pred)
+        model.coef_ = np.array(solution[:-1])
+        model.intercept_ = solution[-1]
+        y_pred = model.predict(X_train)
+        mse = mean_squared_error(y_train, y_pred)
         return mse
 
     # PSO initialization functions
@@ -59,16 +53,13 @@ if uploaded_file is not None:
     def update_velocity(velocities, particles, personal_best_positions, global_best_position, inertia, cognitive, social):
         r1 = np.random.random(size=particles.shape)
         r2 = np.random.random(size=particles.shape)
-
         cognitive_component = cognitive * r1 * (personal_best_positions - particles)
         social_component = social * r2 * (global_best_position - particles)
-        velocities = inertia * velocities + cognitive_component + social_component
-        return velocities
+        return inertia * velocities + cognitive_component + social_component
 
     def update_position(particles, velocities, lower_bound, upper_bound):
         particles += velocities
-        particles = np.clip(particles, lower_bound, upper_bound)
-        return particles
+        return np.clip(particles, lower_bound, upper_bound)
 
     def particle_swarm_optimization(pop_size, dimensions, lower_bound, upper_bound, max_generations, inertia, cognitive, social):
         particles, velocities = initialize_particles(pop_size, dimensions, lower_bound, upper_bound)
@@ -79,7 +70,7 @@ if uploaded_file is not None:
         global_best_score = np.min(personal_best_scores)
 
         history = []
-        start_time = time.time()  # Track start time for computational efficiency
+        start_time = time.time()
 
         for generation in range(max_generations):
             velocities = update_velocity(velocities, particles, personal_best_positions, global_best_position, inertia, cognitive, social)
@@ -87,32 +78,28 @@ if uploaded_file is not None:
 
             current_scores = np.array([fitness_function(p) for p in particles])
 
-            # Update personal bests
             for i in range(pop_size):
                 if current_scores[i] < personal_best_scores[i]:
                     personal_best_scores[i] = current_scores[i]
                     personal_best_positions[i] = particles[i]
 
-            # Update global best
             if np.min(current_scores) < global_best_score:
                 global_best_score = np.min(current_scores)
                 global_best_position = particles[np.argmin(current_scores)]
 
             history.append(global_best_score)
-
             if generation % 10 == 0 or generation == max_generations - 1:
                 st.write(f"Generation {generation}: Best Fitness (MSE) = {global_best_score}")
 
-        elapsed_time = time.time() - start_time  # Calculate computational time
+        elapsed_time = time.time() - start_time
         return global_best_position, global_best_score, history, elapsed_time
 
     # Streamlit Interface
-       # Streamlit Interface
-    st.title("Insurance using Particle Swarm Optimization (PSO)")
+    st.title("Insurance Charges Prediction using PSO")
 
-    # Parameters for PSO
+    # PSO Parameters
     pop_size = st.number_input("Population Size", min_value=10, value=50)
-    dimensions = st.number_input("Dimensions", min_value=2, value=10)
+    dimensions = X_train.shape[1] + 1  # Number of features + 1 for intercept
     max_generations = st.number_input("Maximum Generations", min_value=10, value=100)
     lower_bound = st.number_input("Lower Bound", value=-1.0)
     upper_bound = st.number_input("Upper Bound", value=1.0)
@@ -121,35 +108,30 @@ if uploaded_file is not None:
     social = st.number_input("Social Coefficient", value=1.5)
 
     if st.button("Run Optimization"):
+        st.write("Running Particle Swarm Optimization...")
+
         best_solution, best_fitness, history, elapsed_time = particle_swarm_optimization(
             pop_size, dimensions, lower_bound, upper_bound, max_generations, inertia, cognitive, social
         )
 
-        st.success(f"Optimization Completed! Best Fitness (MSE): {best_fitness}")
-        st.write("Best Solution (Optimized Model Parameters):", best_solution)
-        st.write("Best solution shape:", len(best_solution))  # Debugging output
-        st.write("X_train shape:", X_train.shape)  # Debugging output
+        # Validate the best solution
+        if best_solution is None or len(best_solution[:-1]) != X_train.shape[1]:
+            st.error("Error: PSO failed to produce a valid solution. Check your parameters.")
+        else:
+            st.success(f"Optimization Completed! Best Fitness (MSE): {best_fitness}")
+            st.write("Best Solution (Optimized Model Parameters):", best_solution)
+            st.write("Best solution shape:", len(best_solution))
+            st.write("X_train shape:", X_train.shape)
 
-        # Plot convergence (MSE over generations)
-        st.line_chart(history)
+            # Plot convergence
+            st.line_chart(history)
 
-        # Evaluate accuracy on test data using the best model
-       # Evaluate accuracy on test data using the best model
-model = LinearRegression()
+            # Final model evaluation
+            model = LinearRegression()
+            model.coef_ = best_solution[:-1]
+            model.intercept_ = best_solution[-1]
+            y_pred = model.predict(X_test)
+            mse = mean_squared_error(y_test, y_pred)
 
-# Ensure the shape of best_solution[:-1] matches the number of features
-expected_features = X_train.shape[1]
-if len(best_solution[:-1]) != expected_features:
-    st.error(f"Dimension mismatch: Expected {expected_features} features, but got {len(best_solution[:-1])}.")
-else:
-    model.coef_ = best_solution[:-1]  # Assign coefficients
-    model.intercept_ = best_solution[-1]  # Assign intercept
-
-    # Predict using the model
-    y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-
-    # Display MSE (Accuracy) and Computational Efficiency
-    st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
-    st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
-
+            st.write(f"Final Model Accuracy (MSE on Test Set): {mse}")
+            st.write(f"Computational Efficiency: Time Taken = {elapsed_time:.2f} seconds")
