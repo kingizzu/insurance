@@ -119,7 +119,7 @@ if uploaded_file is not None:
     cognitive = st.number_input("Cognitive Coefficient", value=1.5)
     social = st.number_input("Social Coefficient", value=1.5)
 
-  if st.button("Run Optimization"):
+  if st.button("Run Optimization")
     best_solution, best_fitness, history, elapsed_time = particle_swarm_optimization(
         pop_size, dimensions, lower_bound, upper_bound, max_generations, inertia, cognitive, social
     )
